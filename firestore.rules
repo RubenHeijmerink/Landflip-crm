@@ -1,0 +1,165 @@
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// Collection: properties
+// Document ID: {propertyId}
+// Fields:
+//   - address: string (required)
+//   - apn: string (required)
+//   - county: string
+//   - state: string
+//   - lotSize: number
+//   - zoning: string
+//   - askingPrice: number
+//   - marketValue: number
+//   - targetOfferPrice: number
+//   - notes: string
+//   - status: string (enum: ["Lead", "Underwriting", "Offer Sent", "Accepted", "Rejected"])
+//   - createdAt: timestamp (required)
+//   - uid: string (required, immutable)
+//
+// Collection: offers
+// Document ID: {offerId}
+// Fields:
+//   - propertyId: string (required)
+//   - propertyAddress: string
+//   - amount: number (required)
+//   - date: timestamp (required)
+//   - expirationDate: timestamp
+//   - agentName: string
+//   - agentContact: string
+//   - status: string (enum: ["Sent", "Countered", "Accepted", "Rejected"])
+//   - followUpDate: timestamp
+//   - notes: string
+//   - createdAt: timestamp (required)
+//   - uid: string (required, immutable)
+//
+// Collection: settings
+// Document ID: {uid}
+// Fields:
+//   - offerPercentage: number
+//   - uid: string (required, immutable)
+//
+// ===============================================================
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.uid;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "RubenHeijmerink@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function uidUnchanged() {
+      return !('uid' in request.resource.data) || request.resource.data.uid == request.auth.uid;
+    }
+
+    function uidNotModified() {
+      return !('uid' in request.resource.data) || request.resource.data.uid == resource.data.uid;
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidProperty(data) {
+      return hasRequiredFields(['uid', 'createdAt']) &&
+             (!('address' in data) || (data.address is string && data.address.size() < 255)) &&
+             (!('apn' in data) || (data.apn is string && data.apn.size() < 100)) &&
+             (!('listingLink' in data) || (data.listingLink is string && data.listingLink.size() < 1000)) &&
+             (!('agentName' in data) || (data.agentName is string && data.agentName.size() < 255)) &&
+             (!('agentPhone' in data) || (data.agentPhone is string && data.agentPhone.size() < 50)) &&
+             (!('arv' in data) || (data.arv is number && data.arv >= 0)) &&
+             (!('screenshotUrl' in data) || (data.screenshotUrl is string && data.screenshotUrl.size() < 1000)) &&
+             (!('files' in data) || (data.files is list && data.files.size() < 10)) &&
+             data.uid == request.auth.uid &&
+             (data.status in ["Lead", "Underwriting", "Offer Sent", "Follow-Up", "Accepted", "Rejected"]);
+    }
+
+    function isValidOffer(data) {
+      return hasRequiredFields(['propertyId', 'amount', 'date', 'uid', 'createdAt']) &&
+             data.propertyId is string &&
+             data.amount is number && data.amount >= 0 &&
+             data.uid == request.auth.uid &&
+             (data.status in ["Sent", "Countered", "Accepted", "Rejected"]);
+    }
+
+    function isValidSettings(data) {
+      return hasRequiredFields(['uid']) &&
+             data.uid == request.auth.uid &&
+             (!('offerPercentage' in data) || (data.offerPercentage is number && data.offerPercentage >= 0 && data.offerPercentage <= 100));
+    }
+
+    function isValidMarketAnalysis(data) {
+      return hasRequiredFields(['name', 'activeListings', 'soldListings', 'uid']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 255 &&
+             data.activeListings is list &&
+             data.soldListings is list &&
+             data.uid == request.auth.uid;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /properties/{propertyId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && isValidProperty(request.resource.data) && uidUnchanged();
+      allow update: if isAuthenticated() && isDocOwner() && isValidProperty(request.resource.data) && uidNotModified();
+      allow delete: if isDocOwner() || isAdmin();
+    }
+
+    match /offers/{offerId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && isValidOffer(request.resource.data) && uidUnchanged();
+      allow update: if isAuthenticated() && isDocOwner() && isValidOffer(request.resource.data) && uidNotModified();
+      allow delete: if isDocOwner() || isAdmin();
+    }
+
+    match /settings/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create: if isOwner(uid) && isValidSettings(request.resource.data);
+      allow update: if isOwner(uid) && isValidSettings(request.resource.data) && uidNotModified();
+      allow delete: if isOwner(uid) || isAdmin();
+    }
+
+    match /marketAnalyses/{analysisId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && isValidMarketAnalysis(request.resource.data) && uidUnchanged();
+      allow update: if isAuthenticated() && isDocOwner() && isValidMarketAnalysis(request.resource.data) && uidNotModified();
+      allow delete: if isDocOwner() || isAdmin();
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create, update: if isOwner(userId) && hasOnlyAllowedFields(['name', 'email', 'role']) && (request.resource.data.role == 'user' || isAdmin());
+    }
+  }
+}

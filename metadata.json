@@ -1,0 +1,8 @@
+{
+  "name": "Land Flip CRM",
+  "description": "A clean, simple CRM for tracking and managing land flipping deals, underwriting, and market analysis comps.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

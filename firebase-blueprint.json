@@ -1,0 +1,99 @@
+{
+  "entities": {
+    "Property": {
+      "title": "Property",
+      "description": "A land property being analyzed for a potential flip.",
+      "type": "object",
+      "properties": {
+        "address": { "type": "string" },
+        "apn": { "type": "string" },
+        "county": { "type": "string" },
+        "state": { "type": "string" },
+        "lotSize": { "type": "number" },
+        "zoning": { "type": "string" },
+        "askingPrice": { "type": "number" },
+        "marketValue": { "type": "number" },
+        "targetOfferPrice": { "type": "number" },
+        "notes": { "type": "string" },
+        "status": { "type": "string", "enum": ["Lead", "Underwriting", "Offer Sent", "Follow-Up", "Accepted", "Rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "uid": { "type": "string" }
+      },
+      "required": ["address", "apn", "uid"]
+    },
+    "Offer": {
+      "title": "Offer",
+      "description": "An offer made for a property.",
+      "type": "object",
+      "properties": {
+        "propertyId": { "type": "string" },
+        "propertyAddress": { "type": "string" },
+        "amount": { "type": "number" },
+        "date": { "type": "string", "format": "date-time" },
+        "expirationDate": { "type": "string", "format": "date-time" },
+        "agentName": { "type": "string" },
+        "agentContact": { "type": "string" },
+        "status": { "type": "string", "enum": ["Sent", "Countered", "Accepted", "Rejected"] },
+        "followUpDate": { "type": "string", "format": "date-time" },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "uid": { "type": "string" }
+      },
+      "required": ["propertyId", "amount", "date", "uid"]
+    },
+    "Settings": {
+      "title": "Settings",
+      "description": "User-specific settings for the CRM.",
+      "type": "object",
+      "properties": {
+        "offerPercentage": { "type": "number" },
+        "uid": { "type": "string" }
+      },
+      "required": ["uid"]
+    },
+    "MarketAnalysis": {
+      "title": "Market Analysis",
+      "description": "A saved market analysis with active and sold listings.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "activeListings": { "type": "array" },
+        "soldListings": { "type": "array" },
+        "activeAcreRange": { "type": "array" },
+        "soldAcreRange": { "type": "array" },
+        "activeAcreLimits": { "type": "array" },
+        "soldAcreLimits": { "type": "array" },
+        "activePricePerAcreRange": { "type": "array" },
+        "soldPricePerAcreRange": { "type": "array" },
+        "activePricePerAcreLimits": { "type": "array" },
+        "soldPricePerAcreLimits": { "type": "array" },
+        "activeTotalPriceRange": { "type": "array" },
+        "soldTotalPriceRange": { "type": "array" },
+        "activeTotalPriceLimits": { "type": "array" },
+        "soldTotalPriceLimits": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "uid": { "type": "string" }
+      },
+      "required": ["name", "activeListings", "soldListings", "uid"]
+    }
+  },
+  "firestore": {
+    "/properties/{propertyId}": {
+      "schema": "Property",
+      "description": "Collection of land properties."
+    },
+    "/offers/{offerId}": {
+      "schema": "Offer",
+      "description": "Collection of offers made."
+    },
+    "/settings/{uid}": {
+      "schema": "Settings",
+      "description": "User settings."
+    },
+    "/marketAnalyses/{analysisId}": {
+      "schema": "MarketAnalysis",
+      "description": "Collection of saved market analyses."
+    }
+  }
+}
